@@ -3,8 +3,6 @@
 
 ScaleBench is a powerful and flexible tool designed for benchmarking Large Language Model (LLM) inference. It allows users to measure and analyze the performance of LLM endpoints across various metrics, including token latency, throughput, and time to first token (TTFT).
 
-![ScaleBench](images/ScaleBench.png)
-
 ## Table of Contents
 
 - [Features](#features)
@@ -49,8 +47,6 @@ ScaleBench captures the following performance metrics across varying input/outpu
 - Latency (ms/token)
 - TTFT(ms)
 - Throughput(tokens/sec) 
-
-![metrics](images/metric.png)
 
 ## Installation
 
