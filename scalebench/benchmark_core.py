@@ -83,23 +83,25 @@ class ScaleBench:
             RuntimeError: If benchmark execution fails
             OSError: If directory creation fails
         """
+        # Create output directories
         try:
-            # Create output directories
             self.output_dir.mkdir(parents=True, exist_ok=True)
             locust_logs_dir = self.output_dir / "locust_logs"
             locust_logs_dir.mkdir(exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create output directories: {e}")
             
-            # Validate dataset directory
-            if not self.dataset_dir.exists():
-                raise RuntimeError(
-                    f"Dataset directory {self.dataset_dir} not found. "
-                    "Run 'scalebench dataprep' first."
-                )
-            if not any(self.dataset_dir.iterdir()):
-                raise RuntimeError(
-                    f"Dataset directory {self.dataset_dir} is empty. "
-                    "Run 'scalebench dataprep' to download datasets."
-                )
+        # Validate dataset directory
+        if not self.dataset_dir.exists():
+            raise RuntimeError(
+                f"Dataset directory {self.dataset_dir} not found. "
+                "Run 'scalebench dataprep' first."
+            )
+        if not any(self.dataset_dir.iterdir()):
+            raise RuntimeError(
+                f"Dataset directory {self.dataset_dir} is empty. "
+                "Run 'scalebench dataprep' to download datasets."
+            )
         
         if self.random_prompt:
             logging.info("Using random queries from Dataset.csv")
@@ -160,8 +162,7 @@ class ScaleBench:
             raise ValueError("Output tokens must be positive")
         
         # Set up environment variables
-        try:
-            env = os.environ.copy()
+        env = os.environ.copy()
 
         if self.inference_server in ["Ollama", "vLLM", "NIMS"]:
             env["MODEL_NAME"] = self.model_name
