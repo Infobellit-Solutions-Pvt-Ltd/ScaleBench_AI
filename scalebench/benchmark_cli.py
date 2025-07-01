@@ -168,27 +168,19 @@ def start(config: str) -> None:
     cfg = load_config(config_path)
     
     
-    try:
-        dataset_dir = Path("Input_Dataset")
-        
-        if not dataset_dir.exists():
-            raise click.UsageError(
-                "Dataset directory not found. "
-                "Please run 'scalebench dataprep' first."
-            )
-            
-        if not any(dataset_dir.iterdir()):
-            raise click.UsageError(
-                "Dataset directory is empty. "
-                "Please run 'scalebench dataprep' to download the datasets."
-            )
-        error_msg = (
-            "Filtered dataset not found. "
-            "Please run 'scalebench dataprep' before starting the benchmark."
+    dataset_dir = Path("Input_Dataset")
+    
+    if not dataset_dir.exists():
+        raise click.UsageError(
+            "Dataset directory not found. "
+            "Please run 'scalebench dataprep' first."
         )
-        logging.error(error_msg)
-        click.echo(error_msg, err=True)
-        raise click.Abort()
+        
+    if not any(dataset_dir.iterdir()):
+        raise click.UsageError(
+            "Dataset directory is empty. "
+            "Please run 'scalebench dataprep' to download the datasets."
+        )
     
     logging.info("Using Filtered_ShareGPT_Dataset for the benchmark.")
     
