@@ -180,7 +180,7 @@ class ScaleBench:
                 "TOKENIZER": str(self.tokenizer_path)
             })
 
-            locust_file = pkg_resources.resource_filename('scalebench', 'llm_inference_master.py')
+            locust_file = pkg_resources.resource_filename('scalebench', 'benchmark_controller.py')
             command = [
                 "locust",
                 "-f", locust_file,
@@ -237,7 +237,7 @@ class ScaleBench:
                 "TOKENIZER": str(self.tokenizer_path)
             })
 
-            locust_file = pkg_resources.resource_filename('scalebench', 'llm_inference_master.py')
+            locust_file = pkg_resources.resource_filename('scalebench', 'benchmark_controller.py')
             command = [
                 "locust",
                 "-f", locust_file,
