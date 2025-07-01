@@ -4,7 +4,7 @@ import json
 from unittest.mock import patch, Mock, call
 import pandas as pd
 from pathlib import Path
-from scalebench.benchmark_cli import cli
+from scalebench.cli import cli
 from scalebench.benchmark_core import ScaleBench, run_scalebench
 from scalebench.dataset_manager import download_dataset_files
 from scalebench.load_optimizer import adjust_user_count, run_benchmark_with_incremental_requests
