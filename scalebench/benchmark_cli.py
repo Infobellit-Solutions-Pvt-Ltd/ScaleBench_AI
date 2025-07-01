@@ -4,10 +4,10 @@ from pathlib import Path
 import click
 import pandas as pd
 from tabulate import tabulate
-from scalebench.benchmark_core import ScaleBench
-from scalebench.dataset_manager import download_dataset_files
-from scalebench.utils.visualization import plot_benchmark_results
-from scalebench.load_optimizer import adjust_user_count, run_benchmark_with_incremental_requests
+from .benchmark_core import ScaleBench
+from .dataset_manager import download_dataset_files
+from .utils.visualization import plot_benchmark_results
+from .load_optimizer import adjust_user_count, run_benchmark_with_incremental_requests
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

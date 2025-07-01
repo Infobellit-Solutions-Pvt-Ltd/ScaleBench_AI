@@ -363,7 +363,3 @@ def run_scalebench(
     except Exception as e:
         logging.error(f"Benchmark failed: {str(e)}")
         raise
-
-if __name__ == "__main__":
-    # This part will be replaced by CLI commands
-    run_scalebench("test_output", "http://localhost:8080/generate_stream", "TGI")
