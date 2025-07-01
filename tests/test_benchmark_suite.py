@@ -119,7 +119,7 @@ def test_start_command_without_dataset(mock_load_config, mock_path, runner, mock
 
     result = runner.invoke(cli, ['start', '--config', mock_config_file])
     assert result.exit_code != 0
-    assert "Filtered dataset not found" in result.output
+    assert "Dataset directory not found" in result.output
 
 def test_plot_command_without_results_dir(runner):
     result = runner.invoke(cli, ['plot'])
@@ -201,58 +201,80 @@ def test_run_locust(mock_run, mock_popen, benchmark_instance, tmp_path):
     assert "locust" in command
     assert "--headless" in command
 
+@patch('pathlib.Path.touch')
 @patch('pathlib.Path.mkdir')
-@patch('scalebench.llm_inference_benchmark.ScaleBench._run_locust')
-@patch('scalebench.llm_inference_benchmark.ScaleBench._calculate_average')
-def test_run_benchmark(mock_calc_avg, mock_run_locust, mock_mkdir, benchmark_instance):
+@patch('pathlib.Path.exists')
+@patch('pathlib.Path.iterdir')
+@patch('scalebench.benchmark_core.ScaleBench._run_locust')
+@patch('scalebench.benchmark_core.ScaleBench._calculate_average')
+def test_run_benchmark(mock_calc_avg, mock_run_locust, mock_iterdir, mock_exists, mock_mkdir, mock_touch, benchmark_instance):
+    # Mock dataset directory to exist and have files
+    mock_exists.return_value = True
+    mock_iterdir.return_value = [Mock()]  # Return a non-empty list
+    
     benchmark_instance.run_benchmark()
     assert mock_mkdir.call_count >= 2
     expected_calls = len(benchmark_instance.user_counts) * len(benchmark_instance.input_tokens) * len(benchmark_instance.output_tokens)
     assert mock_run_locust.call_count == expected_calls
+    # ScaleBench._calculate_average is called once per user count, not for each combination
+    assert mock_calc_avg.call_count > 0
 
 # Dataset Tests
-@patch('datasets.load_dataset')
-def test_download_dataset_files(mock_load_dataset, tmp_path):
-    mock_dataset = Mock()
-    mock_dataset.to_csv.return_value = None
-    mock_load_dataset.return_value = mock_dataset
+@patch('scalebench.dataset_manager.get_dataset_files')
+@patch('scalebench.dataset_manager.dataset_exists')
+@patch('scalebench.dataset_manager.download_file')
+def test_download_dataset_files(mock_download_file, mock_dataset_exists, mock_get_files, tmp_path):
+    # Mock successful dataset download
+    mock_get_files.return_value = ["data.csv"]
+    mock_dataset_exists.return_value = False
     
     dataset_dir = tmp_path / "Input_Dataset"
     dataset_dir.mkdir(parents=True)
-    
-    download_dataset_files("test/dataset")
-    mock_load_dataset.assert_called_once_with("test/dataset")
-    mock_dataset.to_csv.assert_called_once()
 
-@patch('datasets.load_dataset')
-def test_download_dataset_files_error(mock_load_dataset):
-    mock_load_dataset.side_effect = Exception("Failed to download dataset")
+    # Call the function
+    download_dataset_files("test/dataset", output_dir=dataset_dir)
+    
+    # Verify the mocks were called correctly
+    mock_get_files.assert_called_once_with("test/dataset")
+    assert mock_download_file.call_count >= 1
+
+@patch('scalebench.dataset_manager.get_dataset_files')
+def test_download_dataset_files_error(mock_get_files):
+    # Mock failed dataset download
+    mock_get_files.side_effect = Exception("Failed to access repository")
+    
     with pytest.raises(Exception) as exc_info:
         download_dataset_files("test/dataset")
-    assert "Failed to download dataset" in str(exc_info.value)
+    assert "Failed to access repository" in str(exc_info.value)
 
 # Optimal User Tests
-@patch('time.sleep')
-def test_adjust_user_count(mock_sleep):
-    # Test increasing user count
-    result = adjust_user_count(
-        current_users=5,
-        prev_latency=100,
-        current_latency=90,
-        min_users=1,
-        max_users=20
-    )
-    assert result > 5  # Should increase users when latency decreases
+@patch('scalebench.load_optimizer.binary_search_user_count')
+@patch('scalebench.load_optimizer.validate_criterion')
+@patch('scalebench.load_optimizer.run_benchmark')
+@patch('scalebench.load_optimizer.extract_metrics_from_avg_response')
+def test_adjust_user_count(mock_extract_metrics, mock_run_benchmark, mock_validate, mock_binary_search, tmp_path):
+    # Create a mock config file
+    config = {
+        "user_counts": [5],
+        "increment_user": [2],
+        "out_dir": str(tmp_path)
+    }
+    config_file = tmp_path / "test_config.json"
+    with open(config_file, "w") as f:
+        json.dump(config, f)
+
+    # Mock the benchmark run
+    mock_run_benchmark.return_value = (Mock(), 1.0)
     
-    # Test decreasing user count
-    result = adjust_user_count(
-        current_users=5,
-        prev_latency=90,
-        current_latency=110,
-        min_users=1,
-        max_users=20
-    )
-    assert result < 5  # Should decrease users when latency increases
+    # Mock metrics
+    mock_extract_metrics.return_value = (1000, 100, 1000, 10, 50)
+    
+    # Force the loop to exit after first iteration
+    mock_validate.return_value = False
+    mock_binary_search.return_value = 3
+    
+    result = adjust_user_count(str(config_file), tmp_path)
+    assert result == 3  # Should return the value from binary_search_user_count
 
 @patch('subprocess.run')
 def test_run_benchmark_with_incremental_requests(mock_run, mock_config_file):

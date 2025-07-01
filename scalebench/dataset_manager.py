@@ -42,21 +42,23 @@ def download_dataset_files(repo_id: str, output_dir: Path = Path("Input_Dataset"
         repo_name = repo_id.split('/')[-1]  # Extract the repo name
         (output_dir / repo_name).mkdir(parents=True, exist_ok=True)  # Create directory if it doesn't exist
 
-        if dataset_exists(output_dir, files):
+        if dataset_exists(output_dir / repo_name, files):
             print(f"Dataset already exists in '{output_dir.resolve()}'. Skipping download.")
             return
 
         for file in files:
-            url = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{file}"
-            local_filename = output_dir/ repo_name / Path(file).name
-            try:
-                download_file(url, local_filename)
-            except Exception as e:
-                print(f"Error downloading {file}: {e}")
+            if file.endswith(('.csv', '.json')):
+                url = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{file}"
+                local_filename = output_dir / repo_name / Path(file).name
+                try:
+                    download_file(url, local_filename)
+                except Exception as e:
+                    print(f"Error downloading {file}: {e}")
         
         print(f"Dataprep Done! Files saved at '{output_dir.resolve()}'.")
     except Exception as e:
         print(f"An error occurred while accessing the repository: {e}")
+        raise Exception(f"Failed to access repository: {e}")
 
 if __name__ == "__main__":
     download_dataset_files("")

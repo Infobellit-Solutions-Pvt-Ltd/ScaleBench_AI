@@ -82,40 +82,27 @@ def extract_metrics_from_avg_response(config_file, result_dir, user_count):
     Extract TTFT, latency, and latency_per_token values from the avg_32_input_tokens_User{user_count}.csv file.
     """
     try:
+        result_dir = Path(result_dir)  # Ensure result_dir is a Path object
         with open(config_file, "r") as file:
             config = json.load(file)
         
         if config.get("random_prompt"):
             avg_response_path = result_dir / f"avg_Response_User{user_count}.csv"
-            if avg_response_path.exists():
-                df = pd.read_csv(avg_response_path)
-                ttft = df["TTFT(ms)"].iloc[0]
-                latency_per_token = df["latency_per_token(ms/token)"].iloc[0]
-                latency = df["latency(ms)"].iloc[0]
-                throughput = df["throughput(tokens/second)"].iloc[0]
-                total_throughput = throughput * user_count
-
-                return ttft, latency_per_token, latency, throughput, total_throughput
-            else:
-                print(f"{avg_response_path} not found.")
-                return None, None, None, None, None
-        
         else:
-            input_token = config.get("input_tokens")[0]
+            input_token = config.get("input_tokens", [32])[0]  # Default to 32 if not specified
             avg_response_path = result_dir / f"avg_{input_token}_input_token_User{user_count}.csv"
-            if avg_response_path.exists():
-                df = pd.read_csv(avg_response_path)
-                ttft = df["TTFT(ms)"].iloc[0]
-                latency_per_token = df["latency_per_token(ms/token)"].iloc[0]
-                latency = df["latency(ms)"].iloc[0]
-                throughput = df["throughput(tokens/second)"].iloc[0]
-                total_throughput = throughput * user_count
-
-                return ttft, latency_per_token, latency, throughput, total_throughput
-            else:
-                print(f"{avg_response_path} not found.")
-                return None, None, None, None, None
-
+        
+        if avg_response_path.exists():
+            df = pd.read_csv(avg_response_path)
+            ttft = df["TTFT(ms)"].iloc[0]
+            latency_per_token = df["latency_per_token(ms/token)"].iloc[0]
+            latency = df["latency(ms)"].iloc[0]
+            throughput = df["throughput(tokens/second)"].iloc[0]
+            total_throughput = throughput * user_count
+            return ttft, latency_per_token, latency, throughput, total_throughput
+        else:
+            print(f"{avg_response_path} not found in {result_dir}/{user_count}_User")
+            return None, None, None, None, None
 
     except Exception as e:
         print(f"Error extracting metrics from {avg_response_path}: {e}")
