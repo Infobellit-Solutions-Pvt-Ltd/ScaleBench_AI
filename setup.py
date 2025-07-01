@@ -31,7 +31,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "scalebench=scalebench.benchmark_cli:cli",
+            "scalebench=scalebench.cli:cli",
         ],
     },
     classifiers=[
