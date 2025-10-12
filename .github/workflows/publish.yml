@@ -68,8 +68,9 @@ jobs:
           twine upload dist/*
 
       # ---- OPTION 2: Trusted Publisher (no secrets) ----
-      # - name: Publish via Trusted Publisher (OIDC)
-      #   if: ${{ secrets.PYPI_API_TOKEN == '' }}
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     repository-url: https://upload.pypi.org/legacy/
+      - name: Publish via Trusted Publisher (OIDC)
+        # if: ${{ secrets.PYPI_API_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://upload.pypi.org/legacy/
+
