@@ -60,7 +60,6 @@ jobs:
 
       # ---- OPTION 1: Secure PyPI token upload ----
       - name: Publish using API token
-        if: ${{ secrets.PYPI_API_TOKEN != '' }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -69,8 +68,8 @@ jobs:
           twine upload dist/*
 
       # ---- OPTION 2: Trusted Publisher (no secrets) ----
-      - name: Publish via Trusted Publisher (OIDC)
-        if: ${{ secrets.PYPI_API_TOKEN == '' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://upload.pypi.org/legacy/
+      # - name: Publish via Trusted Publisher (OIDC)
+      #   if: ${{ secrets.PYPI_API_TOKEN == '' }}
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     repository-url: https://upload.pypi.org/legacy/
