@@ -1,8 +1,8 @@
-
 # ScaleBench: LLM Inference Benchmarking Tool by Infobell IT
 
 ScaleBench is a powerful and flexible tool designed for benchmarking Large Language Model (LLM) inference. It allows users to measure and analyze the performance of LLM endpoints across various metrics, including token latency, throughput, and time to first token (TTFT).
 
+![scalebench](images/Echoswift.png)
 ## Table of Contents
 
 - [Features](#features)
@@ -48,6 +48,8 @@ ScaleBench captures the following performance metrics across varying input/outpu
 - TTFT(ms)
 - Throughput(tokens/sec) 
 
+![metrics](images/metric.png)
+
 ## Installation
 
 You can install ScaleBench using pip:
@@ -59,8 +61,8 @@ pip install scalebench
 Alternatively, you can install from source:
 
 ```bash
-git clone https://github.com/Infobellit-Solutions-Pvt-Ltd/ScaleBench.git
-cd ScaleBench
+git clone https://github.com/Infobellit-Solutions-Pvt-Ltd/ScaleBench_AI.git
+cd ScaleBench_AI
 pip install -e .
 ```
 

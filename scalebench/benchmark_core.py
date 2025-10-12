@@ -54,8 +54,6 @@ class ScaleBench:
             raise ValueError("max_requests must be positive")
         if not user_counts:
             raise ValueError("user_counts cannot be empty")
-        if any(u < 1 for u in user_counts):
-            raise ValueError("All user counts must be positive")
         if not random_prompt:
             if not input_tokens:
                 raise ValueError("input_tokens required when not using random prompts")
@@ -154,12 +152,6 @@ class ScaleBench:
             RuntimeError: If Locust process fails or times out
             ValueError: If parameters are invalid
         """
-        if users < 1:
-            raise ValueError("Number of users must be positive")
-        if input_tokens is not None and input_tokens < 1:
-            raise ValueError("Input tokens must be positive")
-        if output_tokens is not None and output_tokens < 1:
-            raise ValueError("Output tokens must be positive")
         
         # Set up environment variables
         env = os.environ.copy()

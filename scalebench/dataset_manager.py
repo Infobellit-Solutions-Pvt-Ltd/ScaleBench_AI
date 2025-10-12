@@ -47,13 +47,12 @@ def download_dataset_files(repo_id: str, output_dir: Path = Path("Input_Dataset"
             return
 
         for file in files:
-            if file.endswith(('.csv', '.json')):
-                url = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{file}"
-                local_filename = output_dir / repo_name / Path(file).name
-                try:
-                    download_file(url, local_filename)
-                except Exception as e:
-                    print(f"Error downloading {file}: {e}")
+            url = f"https://huggingface.co/datasets/{repo_id}/resolve/main/{file}"
+            local_filename = output_dir / repo_name / Path(file).name
+            try:
+                download_file(url, local_filename)
+            except Exception as e:
+                print(f"Error downloading {file}: {e}")
         
         print(f"Dataprep Done! Files saved at '{output_dir.resolve()}'.")
     except Exception as e:

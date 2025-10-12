@@ -13,55 +13,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-def load_config(config_file: str) -> dict:
-    """Load and validate configuration from a JSON file.
-    
-    Args:
-        config_file: Path to the configuration file.
-        
-    Returns:
-        dict: Loaded and validated configuration.
-        
-    Raises:
-        click.FileError: If file doesn't exist or has invalid permissions
-        click.UsageError: If JSON is invalid or missing required fields
-    """
-    try:
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-            
-        # Validate required fields
-        required_fields = [
-            'out_dir', 'base_url', 'inference_server',
-            'max_requests', 'user_counts', 'output_tokens'
-        ]
-        missing_fields = [field for field in required_fields if field not in config]
-        if missing_fields:
-            raise click.UsageError(
-                f"Missing required fields in config: {', '.join(missing_fields)}"
-            )
-            
-        # Validate field types and values
-        if not isinstance(config.get('max_requests', 0), int) or config.get('max_requests', 0) <= 0:
-            raise click.UsageError("max_requests must be a positive integer")
-            
-        if not isinstance(config.get('user_counts', []), list) or not config.get('user_counts', []):
-            raise click.UsageError("user_counts must be a non-empty list of integers")
-            
-        if not isinstance(config.get('output_tokens', []), list) or not config.get('output_tokens', []):
-            raise click.UsageError("output_tokens must be a non-empty list of integers")
-            
-        return config
-            
-    except FileNotFoundError:
-        raise click.FileError(
-            config_file,
-            hint="Configuration file not found. Run 'scalebench dataprep' to create one."
-        )
-    except json.JSONDecodeError as e:
-        raise click.UsageError(f"Invalid JSON in config file: {str(e)}")
-    except Exception as e:
-        raise click.UsageError(f"Error loading config: {str(e)}")
+def load_config(config_file):
+    with open(config_file, 'r') as f:
+        return json.load(f)
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
@@ -76,7 +30,7 @@ def cli():
     4. Run 'scalebench optimaluserrun --config path/to/config.json' to find optimal user count
 
     For more detailed information, visit: \n
-    https://github.com/Infobellit-Solutions-Pvt-Ltd/ScaleBench
+    https://github.com/Infobellit-Solutions-Pvt-Ltd/ScaleBench_AI
     """
     pass
 
@@ -92,7 +46,7 @@ def create_config(output: str = 'config.json') -> None:
     config = {
         "_comment": "ScaleBench Configuration",
         "out_dir": "test_results",
-        "base_url": "http://10.216.178.15:8000/v1/completions",
+        "base_url": "http://localhost:8000/v1/completions",
         "tokenizer_path": "",
         "inference_server": "vLLM",
         "model": "meta-llama/Meta-Llama-3-8B",
@@ -106,27 +60,13 @@ def create_config(output: str = 'config.json') -> None:
 
     output_path = Path(output)
     if output_path.exists():
-        raise click.UsageError(
-            f"Configuration file {output} already exists. "
-            "Please delete it first or use a different name."
-        )
+        click.echo(f"The file {output} already exists. please validate the config file.")
 
-    try:
-        # Ensure parent directory exists
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_path, 'w') as f:
-            json.dump(config, f, indent=2)
+    with open(output_path, 'w') as f:
+        json.dump(config, f, indent=2)
 
-        click.echo(f"Configuration file created: {output_path}")
-        click.echo("Please review and modify this file before running the benchmark.")
-    except PermissionError:
-        raise click.UsageError(
-            f"Permission denied when creating {output}. "
-            "Please check your file permissions."
-        )
-    except Exception as e:
-        raise click.UsageError(f"Error creating config file: {str(e)}")
+    click.echo(f"Configuration file created: {output_path}")
+    click.echo("Please review and modify this file before running the benchmark.")
 
 @cli.command()
 @click.option(
@@ -185,8 +125,7 @@ def start(config: str) -> None:
     logging.info("Using Filtered_ShareGPT_Dataset for the benchmark.")
     
     try:
-        if cfg.get('random_prompt', False):
-            print("inside if condition")
+        if cfg.get('random_prompt'):
             # Use random queries from Dataset.csv
             benchmark = ScaleBench(
                 output_dir=cfg['out_dir'],
@@ -256,24 +195,15 @@ def start(config: str) -> None:
                         all_results.append(df)
 
             if all_results:
-                columns = [
-                    'users', 'input_tokens', 'output_tokens',
-                    'throughput(tokens/second)', 'latency(ms)',
-                    'TTFT(ms)', 'latency_per_token(ms/token)'
-                ]
                 combined_df = pd.concat(all_results, ignore_index=True)
-                combined_df = combined_df[columns].round(3)
+                combined_df = combined_df[['users', 'input_tokens', 'output_tokens', 'throughput(tokens/second)', 'latency(ms)', 'TTFT(ms)', 'latency_per_token(ms/token)']]
+                combined_df = combined_df.round(3)
                 
-                sort_columns = ['users', 'input_tokens', 'output_tokens']
-                combined_df = combined_df.sort_values(sort_columns)
+                # Sort the DataFrame
+                combined_df = combined_df.sort_values(['users', 'input_tokens', 'output_tokens'])
 
-                table = tabulate(
-                    combined_df,
-                    headers='keys',
-                    tablefmt='pretty',
-                    showindex=False
-                )
-                click.echo(table)
+                click.echo(tabulate(combined_df, headers='keys', tablefmt='pretty', showindex=False))
+
                 click.echo("Tests completed successfully !!")
                         
     except Exception as e:
@@ -363,7 +293,7 @@ def plot(results_dir: str, config: str) -> None:
         raise click.BadParameter("The specified results directory is not a directory.")
     
     try:
-        if cfg.get('random_prompt', False):
+        if cfg.get('random_prompt'):
             random_prompt = True
         else:
             random_prompt = False
