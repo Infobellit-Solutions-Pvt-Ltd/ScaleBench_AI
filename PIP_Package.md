@@ -37,7 +37,7 @@ pip install scalebench
 Alternatively, you can install from source:
 
 ```bash
-git clone https://github.com/Infobellit-Solutions-Pvt-Ltd/scalebench.git
+git clone https://github.com/Infobellit-Solutions-Pvt-Ltd/ScaleBench_AI
 cd scalebench
 pip install -e .
 ```
