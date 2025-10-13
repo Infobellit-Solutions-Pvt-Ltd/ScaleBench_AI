@@ -280,7 +280,7 @@ class ScaleBench:
             input_file=user_dir / "Response.csv"
             output_file = user_dir / f"avg_Response.csv"
 
-            avg_script = pkg_resources.resource_filename('scalebench', 'utils/avg_locust_results.py')
+            avg_script = pkg_resources.resource_filename('scalebench', 'utils/metrics_processor.py')
             command = [
                 "python3",
                 avg_script,
@@ -299,7 +299,7 @@ class ScaleBench:
             input_file = user_dir / f"{input_token}_input_tokens.csv"
             output_file = user_dir / f"avg_{input_token}_input_tokens.csv"
             
-            avg_script = pkg_resources.resource_filename('scalebench', 'utils/avg_locust_results.py')
+            avg_script = pkg_resources.resource_filename('scalebench', 'utils/metrics_processor.py')
             command = [
                 "python3",
                 avg_script,
