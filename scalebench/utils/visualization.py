@@ -5,8 +5,7 @@ from pathlib import Path
 import argparse
 
 def process_csv_files(directory_path, random_prompt):
-    user_number = int(''.join(filter(str.isdigit, directory_path.name)))
-    data = {}
+    data = []
 
     if random_prompt==True:
         csv_files = sorted(directory_path.glob('avg_Response.csv'))
@@ -19,20 +18,23 @@ def process_csv_files(directory_path, random_prompt):
                 token_latency = row['latency_per_token(ms/token)']
                 throughput = row['throughput(tokens/second)']
                 ttft = row['TTFT(ms)']
-                data.setdefault(user_number, []).append((input_tokens, output_token, token_latency, throughput, ttft))
+                data.append((input_tokens, output_token, token_latency, throughput, ttft))
                 
     else:
         csv_files = sorted(directory_path.glob('avg_*_input_tokens.csv'), 
                             key=lambda x: int(''.join(filter(str.isdigit, x.stem))))
-        
+
         for csv_file in csv_files:
             df = pd.read_csv(csv_file)
             for _, row in df.iterrows():
-                output_token = row['output_tokens']
-                token_latency = row['latency_per_token(ms/token)']
+                user_counts = row['user_counts']
+                input_tokens = row['input_tokens']
+                output_tokens = row['output_tokens']
                 throughput = row['throughput(tokens/second)']
-                ttft = row['TTFT(ms)']
-                data.setdefault(user_number, []).append((output_token, token_latency, throughput, ttft))
+                latency = row['latency(ms)']
+                TTFT = row['TTFT(ms)']
+                latency_per_token = row['latency_per_token(ms/token)']
+                data.append((user_counts, input_tokens, output_tokens, throughput, latency, TTFT, latency_per_token))
 
     return data
 
@@ -40,70 +42,108 @@ def write_to_csv(data, output_file, random_prompt):
     with open(output_file, 'w') as f:   
         if random_prompt==True:
             f.write('Number of Parallel Requests,Input Token(avg), Output Token(avg),Token Latency (ms/token),Throughput (tokens/second),TTFT (ms)\n')
-            for num_Requests, values in sorted(data.items()):
-                for value in values:
-                    f.write(f'{num_Requests},{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
+            for value in data:
+                f.write(f'{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
         else:
-            f.write('Number of Parallel Requests,Output Token,Token Latency (ms/token),Throughput (tokens/second),TTFT (ms)\n')
-            for num_Requests, values in sorted(data.items()):
-                for value in values:
-                    f.write(f'{num_Requests},{value[0]},{value[1]},{value[2]},{value[3]}\n')
+            f.write('user_counts,input_tokens,output_tokens,throughput(tokens/second),latency(ms),TTFT(ms),latency_per_token(ms/token)\n')
+            for value in data:
+                f.write(f'{value[0]},{value[1]},{value[2]},{value[3]},{value[4]},{value[5]},{value[6]}\n')
+
+def write_to_txt(data, output_file, random_prompt):
+    with open(output_file, 'w') as f:   
+        if random_prompt==True:
+            f.write("=" * 80 + "\n")
+            f.write("BENCHMARK RESULTS - RANDOM PROMPT MODE\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(f"{'Parallel Requests':<20} {'Input Tokens':<15} {'Output Tokens':<15} {'Token Latency (ms/token)':<25} {'Throughput (tokens/second)':<25} {'TTFT (ms)':<15}\n")
+            f.write("-" * 120 + "\n")
+            for value in data:
+                f.write(f"{value[0]:<20} {value[1]:<15} {value[2]:<15} {float(value[3]):<25.2f} {float(value[4]):<25.2f} {float(value[5]):<15.2f}\n")
+        else:
+            f.write("=" * 100 + "\n")
+            f.write("BENCHMARK RESULTS - FIXED PROMPT MODE\n")
+            f.write("=" * 100 + "\n\n")
+            f.write(f"{'User Counts':<12} {'Input Tokens':<15} {'Output Tokens':<15} {'Throughput (tokens/second)':<25} {'Latency (ms)':<15} {'TTFT (ms)':<15} {'Latency/Token (ms/token)':<25}\n")
+            f.write("-" * 140 + "\n")
+            for value in data:
+                f.write(f"{value[0]:<12} {value[1]:<15} {value[2]:<15} {float(value[3]):<25.2f} {float(value[4]):<15.2f} {float(value[5]):<15.2f} {float(value[6]):<25.2f}\n")
+        
+        f.write("\n" + "=" * 100 + "\n")
+        f.write(f"Total Records: {len(data)}\n")
+        f.write("=" * 100 + "\n")
 
 def plot_line_chart(data, x_label, y_label, title, output_file):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
 
     x_values = data[x_label]
     y_values = data[y_label]
 
-    num_Requests = sorted(set(x_values))
-    x_ticks_positions = np.arange(len(num_Requests))
+    # Get unique x values and calculate averages for each x value
+    unique_x_values = sorted(set(x_values))
+    x_ticks_positions = np.arange(len(unique_x_values))
+    
+    # Calculate average y values for each unique x value
+    avg_y_values = []
+    for x_val in unique_x_values:
+        mask = x_values == x_val
+        avg_y = y_values[mask].mean()
+        avg_y_values.append(avg_y)
 
-    plt.plot(x_ticks_positions, y_values, marker='o', label=y_label)
+    plt.plot(x_ticks_positions, avg_y_values, marker='o', linewidth=2, markersize=8, label=f'Average {y_label}')
 
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)
 
-    for i, txt in enumerate(y_values):
-        plt.annotate(f'{txt:.2f}', xy=(x_ticks_positions[i], y_values.iloc[i]), ha='center', va='bottom')
+    # Add value annotations
+    for i, (x_pos, y_val) in enumerate(zip(x_ticks_positions, avg_y_values)):
+        plt.annotate(f'{y_val:.2f}', xy=(x_pos, y_val), ha='center', va='bottom', fontsize=10)
 
-    plt.xticks(x_ticks_positions, [str(num) for num in num_Requests])
+    plt.xticks(x_ticks_positions, [str(num) for num in unique_x_values])
     
     plt.legend()
-    plt.grid(False)
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(output_file)
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_benchmark_results(base_directory, random_prompt=False):
     base_directory = Path(base_directory)
-    output_file = base_directory / 'aggregated_data.csv'
+    csv_output_file = base_directory / 'aggregated_data.csv'
+    txt_output_file = base_directory / 'aggregated_data.txt'
     
-    data = {}
-    for directory in base_directory.iterdir():
-        if directory.is_dir() and "_User" in directory.name:
-            directory_data = process_csv_files(directory, random_prompt)
-            for num_Requests, values in directory_data.items():
-                data.setdefault(num_Requests, []).extend(values)   
+    data = []
+    # Sort directories by user count to ensure proper sequence (1, 3, 10)
+    directories = [d for d in base_directory.iterdir() if d.is_dir() and "_User" in d.name]
+    directories.sort(key=lambda x: int(''.join(filter(str.isdigit, x.name))))
+    
+    for directory in directories:
+        directory_data = process_csv_files(directory, random_prompt)
+        data.extend(directory_data)   
 
-    write_to_csv(data, output_file, random_prompt)
-    print(f"Aggregated data has been written to {output_file}")
+    # Save data in both CSV and TXT formats
+    write_to_csv(data, csv_output_file, random_prompt)
+    write_to_txt(data, txt_output_file, random_prompt)
+    
+    print(f"Aggregated data has been written to:")
+    print(f"  CSV format: {csv_output_file}")
+    print(f"  TXT format: {txt_output_file}")
 
-    df = pd.read_csv(output_file)
+    df = pd.read_csv(csv_output_file)
 
-    plot_line_chart(df[['Number of Parallel Requests', 'Token Latency (ms/token)']], 
-                    'Number of Parallel Requests', 'Token Latency (ms/token)', 
-                    'Parallel Requests vs Token Latency', 
+    plot_line_chart(df[['user_counts', 'latency_per_token(ms/token)']], 
+                    'user_counts', 'latency_per_token(ms/token)', 
+                    'User Counts vs Token Latency', 
                     base_directory / 'token_latency_plot.png')
 
-    plot_line_chart(df[['Number of Parallel Requests', 'Throughput (tokens/second)']], 
-                    'Number of Parallel Requests', 'Throughput (tokens/second)', 
-                    'Parallel Requests vs Throughput', 
+    plot_line_chart(df[['user_counts', 'throughput(tokens/second)']], 
+                    'user_counts', 'throughput(tokens/second)', 
+                    'User Counts vs Throughput', 
                     base_directory / 'throughput_plot.png')
 
-    plot_line_chart(df[['Number of Parallel Requests', 'TTFT (ms)']], 
-                    'Number of Parallel Requests', 'TTFT (ms)', 
-                    'Parallel Requests vs Time to First Token', 
+    plot_line_chart(df[['user_counts', 'TTFT(ms)']], 
+                    'user_counts', 'TTFT(ms)', 
+                    'User Counts vs Time to First Token', 
                     base_directory / 'ttft_plot.png')
 
 if __name__ == "__main__":

@@ -116,7 +116,7 @@ class ScaleBench:
                 logging.info(f"Running Locust with users={u}")
                 self._run_locust(u, output_tokens=self.output_tokens, output_file=user_file, logs_dir=locust_logs_dir)
 
-                self._calculate_average(user_dir=user_dir, random_prompt=self.random_prompt)
+                self._calculate_average(user_dir=user_dir, random_prompt=self.random_prompt, user_count=u)
                
         else:
             logging.info("Using custom queries from Input_Dataset")
@@ -135,7 +135,7 @@ class ScaleBench:
                         logging.info(f"Running Locust with users={u}, input_tokens={input_token}, and output_tokens={output_token}")
                         self._run_locust(u, user_file, locust_logs_dir, input_token, output_token)
                     
-                    self._calculate_average(user_dir, input_token)
+                    self._calculate_average(user_dir, input_token, user_count=u)
                     
 
     def _run_locust(self, users: int, output_file: Path, logs_dir: Path, input_tokens: int = None, output_tokens: int = None) -> None:
@@ -274,20 +274,21 @@ class ScaleBench:
             if process.returncode != 0 and process.returncode != -signal.SIGTERM.value:
                 logging.error(f"Locust command failed with return code {process.returncode}. Check the log file: {log_file_path}")
 
-    def _calculate_average(self, user_dir: Path, input_token: int = None, random_prompt: bool = False):
+    def _calculate_average(self, user_dir: Path, input_token: int = None, random_prompt: bool = False, user_count: int = None):
 
         if self.random_prompt:
             input_file=user_dir / "Response.csv"
             output_file = user_dir / f"avg_Response.csv"
 
-            avg_script = pkg_resources.resource_filename('scalebench', 'utils/avg_locust_results.py')
+            avg_script = pkg_resources.resource_filename('scalebench', 'utils/metrics_processor.py')
             command = [
                 "python3",
                 avg_script,
                 "--input_csv_filename", str(input_file),
                 "--output_csv_filename", str(output_file),
+                "--user_count", str(user_count),
                 "--random_prompt"
-                ]
+            ]
             
             try:
                 subprocess.run(command, check=True)
@@ -299,14 +300,15 @@ class ScaleBench:
             input_file = user_dir / f"{input_token}_input_tokens.csv"
             output_file = user_dir / f"avg_{input_token}_input_tokens.csv"
             
-            avg_script = pkg_resources.resource_filename('scalebench', 'utils/avg_locust_results.py')
+            avg_script = pkg_resources.resource_filename('scalebench', 'utils/metrics_processor.py')
             command = [
                 "python3",
                 avg_script,
                 "--input_csv_filename", str(input_file),
                 "--output_csv_filename", str(output_file),
-                "--tokens"
-            ] + [str(t) for t in self.output_tokens]
+                "--user_count", str(user_count),
+                "--input_tokens", str(input_token)
+            ]
 
             try:
                 subprocess.run(command, check=True)
