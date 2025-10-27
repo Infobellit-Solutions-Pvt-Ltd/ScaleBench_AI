@@ -13,12 +13,15 @@ def process_csv_files(directory_path, random_prompt):
         for csv_file in csv_files:
             df = pd.read_csv(csv_file)
             for _, row in df.iterrows():
+                user_counts = row['user_counts']
                 input_tokens = row['input_tokens']
                 output_token = row['output_tokens']
-                token_latency = row['latency_per_token(ms/token)']
                 throughput = row['throughput(tokens/second)']
+                latency = row['latency(ms)']
                 ttft = row['TTFT(ms)']
-                data.append((input_tokens, output_token, token_latency, throughput, ttft))
+                token_latency = row['latency_per_token(ms/token)']
+                total_throughput = row['total_throughput(tokens/second)']
+                data.append((user_counts, input_tokens, output_token, throughput, latency, ttft, token_latency, total_throughput))
                 
     else:
         csv_files = sorted(directory_path.glob('avg_*_input_tokens.csv'), 
@@ -34,39 +37,28 @@ def process_csv_files(directory_path, random_prompt):
                 latency = row['latency(ms)']
                 TTFT = row['TTFT(ms)']
                 latency_per_token = row['latency_per_token(ms/token)']
-                data.append((user_counts, input_tokens, output_tokens, throughput, latency, TTFT, latency_per_token))
+                total_throughput = row['total_throughput(tokens/second)']
+                data.append((user_counts, input_tokens, output_tokens, throughput, latency, TTFT, latency_per_token, total_throughput))
 
     return data
 
 def write_to_csv(data, output_file, random_prompt):
     with open(output_file, 'w') as f:   
-        if random_prompt==True:
-            f.write('Number of Parallel Requests,Input Token(avg), Output Token(avg),Token Latency (ms/token),Throughput (tokens/second),TTFT (ms)\n')
-            for value in data:
-                f.write(f'{value[0]},{value[1]},{value[2]},{value[3]},{value[4]}\n')
-        else:
-            f.write('user_counts,input_tokens,output_tokens,throughput(tokens/second),latency(ms),TTFT(ms),latency_per_token(ms/token)\n')
-            for value in data:
-                f.write(f'{value[0]},{value[1]},{value[2]},{value[3]},{value[4]},{value[5]},{value[6]}\n')
+        # Use same format for both random_prompt and fixed prompt
+        f.write('user_counts,input_tokens,output_tokens,throughput(tokens/second),latency(ms),TTFT(ms),latency_per_token(ms/token),total_throughput(tokens/second)\n')
+        for value in data:
+            f.write(f'{value[0]},{value[1]},{value[2]},{value[3]},{value[4]},{value[5]},{value[6]},{value[7]}\n')
 
 def write_to_txt(data, output_file, random_prompt):
     with open(output_file, 'w') as f:   
-        if random_prompt==True:
-            f.write("=" * 80 + "\n")
-            f.write("BENCHMARK RESULTS - RANDOM PROMPT MODE\n")
-            f.write("=" * 80 + "\n\n")
-            f.write(f"{'Parallel Requests':<20} {'Input Tokens':<15} {'Output Tokens':<15} {'Token Latency (ms/token)':<25} {'Throughput (tokens/second)':<25} {'TTFT (ms)':<15}\n")
-            f.write("-" * 120 + "\n")
-            for value in data:
-                f.write(f"{value[0]:<20} {value[1]:<15} {value[2]:<15} {float(value[3]):<25.2f} {float(value[4]):<25.2f} {float(value[5]):<15.2f}\n")
-        else:
-            f.write("=" * 100 + "\n")
-            f.write("BENCHMARK RESULTS - FIXED PROMPT MODE\n")
-            f.write("=" * 100 + "\n\n")
-            f.write(f"{'User Counts':<12} {'Input Tokens':<15} {'Output Tokens':<15} {'Throughput (tokens/second)':<25} {'Latency (ms)':<15} {'TTFT (ms)':<15} {'Latency/Token (ms/token)':<25}\n")
-            f.write("-" * 140 + "\n")
-            for value in data:
-                f.write(f"{value[0]:<12} {value[1]:<15} {value[2]:<15} {float(value[3]):<25.2f} {float(value[4]):<15.2f} {float(value[5]):<15.2f} {float(value[6]):<25.2f}\n")
+        mode_label = "RANDOM PROMPT MODE" if random_prompt else "FIXED PROMPT MODE"
+        f.write("=" * 100 + "\n")
+        f.write(f"BENCHMARK RESULTS - {mode_label}\n")
+        f.write("=" * 100 + "\n\n")
+        f.write(f"{'User Counts':<12} {'Input Tokens':<15} {'Output Tokens':<15} {'Throughput (tokens/second)':<25} {'Latency (ms)':<15} {'TTFT (ms)':<15} {'Latency/Token (ms/token)':<25} {'Total Throughput (tokens/second)':<30}\n")
+        f.write("-" * 180 + "\n")
+        for value in data:
+            f.write(f"{value[0]:<12} {round(float(value[1]), 2):<15} {round(float(value[2]), 2):<15} {round(float(value[3]), 2):<25} {round(float(value[4]), 2):<15} {round(float(value[5]), 2):<15} {round(float(value[6]), 2):<25} {round(float(value[7]), 2):<30}\n")
         
         f.write("\n" + "=" * 100 + "\n")
         f.write(f"Total Records: {len(data)}\n")

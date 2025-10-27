@@ -7,6 +7,9 @@ from pathlib import Path
 import keyboard  
 import argparse
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Define the threshold for TTFT and latency
 VALIDATION_CRITERION = {"TTFT": 2000, "latency_per_token": 200}
@@ -35,7 +38,7 @@ def run_benchmark(config_file):
         run_time = time.time() - start_time
         return result, run_time
     except Exception as e:
-        print(f"Error running benchmark: {e}")
+        logging.error(f"Error running benchmark: {e}")
         return None, None
 
 def copy_avg_response(config_file, result_dir, user_count):
@@ -79,33 +82,45 @@ def copy_avg_response(config_file, result_dir, user_count):
 
 def extract_metrics_from_avg_response(config_file, result_dir, user_count):
     """
-    Extract TTFT, latency, and latency_per_token values from the avg_32_input_tokens_User{user_count}.csv file.
+    Extract TTFT, latency, and latency_per_token values from the user's avg_Response.csv file.
+    Reads the last row (most recent average) from the file.
     """
     try:
-        result_dir = Path(result_dir)  # Ensure result_dir is a Path object
         with open(config_file, "r") as file:
             config = json.load(file)
+
+        out_dir = config.get("out_dir")
+        if not out_dir:
+            print("Error: 'out_dir' not specified in the config file.")
+            return None, None, None, None, None
+
+        out_dir_path = Path(out_dir)
         
         if config.get("random_prompt"):
-            avg_response_path = result_dir / f"avg_Response_User{user_count}.csv"
+            # Read directly from the user's directory
+            user_folder = out_dir_path / f"{user_count}_User"
+            avg_response_path = user_folder / "avg_Response.csv"
         else:
-            input_token = config.get("input_tokens", [32])[0]  # Default to 32 if not specified
-            avg_response_path = result_dir / f"avg_{input_token}_input_token_User{user_count}.csv"
+            user_folder = out_dir_path / f"{user_count}_User"
+            input_token = config.get("input_tokens", [32])[0]
+            avg_response_path = user_folder / f"avg_{input_token}_input_tokens.csv"
         
         if avg_response_path.exists():
             df = pd.read_csv(avg_response_path)
-            ttft = df["TTFT(ms)"].iloc[0]
-            latency_per_token = df["latency_per_token(ms/token)"].iloc[0]
-            latency = df["latency(ms)"].iloc[0]
-            throughput = df["throughput(tokens/second)"].iloc[0]
-            total_throughput = throughput * user_count
+            # Get the last row (most recent average)
+            last_row_idx = len(df) - 1
+            ttft = df["TTFT(ms)"].iloc[last_row_idx]
+            latency_per_token = df["latency_per_token(ms/token)"].iloc[last_row_idx]
+            latency = df["latency(ms)"].iloc[last_row_idx]
+            throughput = df["throughput(tokens/second)"].iloc[last_row_idx]
+            total_throughput = df["total_throughput(tokens/second)"].iloc[last_row_idx]
             return ttft, latency_per_token, latency, throughput, total_throughput
         else:
-            print(f"{avg_response_path} not found in {result_dir}/{user_count}_User")
+            print(f"{avg_response_path} not found")
             return None, None, None, None, None
 
     except Exception as e:
-        print(f"Error extracting metrics from {avg_response_path}: {e}")
+        print(f"Error extracting metrics: {e}")
         return None, None, None, None, None
 
 def binary_search_user_count(config_file, low, high, result_dir):
@@ -152,14 +167,23 @@ def binary_search_user_count(config_file, low, high, result_dir):
   
 def run_benchmark_with_incremental_requests(config_file, optimal_user_count, result_dir):
     """
-    Run the benchmark continuously after updating the config with the optimal user count.
-    If validation fails due to saturation, reduce the user count and retry.
+    Run the benchmark for 10 iterations at the optimal user count.
+    If validation fails during the iterations, reduce the user count and retry.
     """
     print(f"Starting continuous benchmark with {optimal_user_count} users...")
+    max_iterations = 10
+    
     try:
-        while True:
+        current_user_count = optimal_user_count
+        iteration = 0
+        failed_validations = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            print(f"\n--- Iteration {iteration}/{max_iterations} with {current_user_count} users ---")
+            
             # Update config with current user count
-            update_config(config_file, optimal_user_count)
+            update_config(config_file, current_user_count)
 
             # Run the benchmark
             result, benchmark_time = run_benchmark(config_file)
@@ -168,33 +192,50 @@ def run_benchmark_with_incremental_requests(config_file, optimal_user_count, res
                 break
 
             # Copy and extract metrics
-            copy_avg_response(config_file, result_dir, optimal_user_count)
+            copy_avg_response(config_file, result_dir, current_user_count)
 
-            metrics = extract_metrics_from_avg_response(config_file, result_dir, optimal_user_count)
+            metrics = extract_metrics_from_avg_response(config_file, result_dir, current_user_count)
             if not all(metric is not None for metric in metrics):
                 print("Error extracting metrics. Exiting.")
                 break
             
             ttft, latency_per_token, latency, throughput, total_throughput = metrics
-            print(f"Continuous Run - User Count: {optimal_user_count}, TTFT: {ttft} ms, "
+            print(f"Continuous Run - User Count: {current_user_count}, TTFT: {ttft} ms, "
                   f"Latency: {latency} ms, Latency per Token: {latency_per_token} ms/token, "
                   f"Throughput: {throughput} tokens/second, Total Throughput: {total_throughput} tokens/second")
 
             # Check if performance is still acceptable
             if not validate_criterion(ttft, latency_per_token):
-                print(f"Validation failed at user count {optimal_user_count}. Reducing user count.")
-                optimal_user_count -= 1
-                if optimal_user_count <= 0:
-                    print("User count reduced to 0. Stopping benchmark.")
-                    break
-                continue  # Retry with reduced user count
+                failed_validations += 1
+                print(f"Validation failed at iteration {iteration} for user count {current_user_count}. "
+                      f"Total failures: {failed_validations}/10")
+                
+                # If 2 or more failures, reduce user count and reset
+                if failed_validations >= 2:
+                    print(f"\nValidation failed {failed_validations} times. Reducing user count and retrying...")
+                    current_user_count -= 1
+                    if current_user_count <= 0:
+                        print("User count reduced to 0. Stopping benchmark.")
+                        break
+                    print(f"Reducing user count to {current_user_count} and resetting iterations...")
+                    iteration = 0  # Reset iteration counter to start from 1 again
+                    failed_validations = 0  # Reset failure counter
+                    continue
+                
+                # If only 1 failure, continue to next iteration
+                continue
 
-            # Otherwise, save summary report and send data
+            # If validation passed, save summary report and send data
             summary_report_path = generate_summary_report(
-                config_file, optimal_user_count,
+                config_file, current_user_count,
                 [ttft, latency_per_token, latency, throughput, total_throughput],
                 benchmark_time
             )
+        
+        # Check if we completed all 10 iterations successfully
+        if iteration == max_iterations:
+            print(f"\nAll {max_iterations} iterations completed successfully with {current_user_count} users.")
+            print(f"So the optimal user count is {current_user_count}.")
 
     except KeyboardInterrupt:
         print("\nContinuous benchmarking stopped by user.")
@@ -235,7 +276,7 @@ def adjust_user_count(config_file, result_dir):
     increment = config.get("increment_user")[0]
     out_dir = config.get("out_dir")
     if not out_dir:
-        print("Error: 'out_dir' not specified in the config file.")
+        logging.error("Error: 'out_dir' not specified in the config file.")
         return
     
     optimal_user_count = 0
@@ -251,7 +292,7 @@ def adjust_user_count(config_file, result_dir):
         # Run the benchmark
         result, benchmark_time = run_benchmark(config_file)
         if result is None:
-            print("Benchmark run failed. Exiting.")
+            logging.error("Benchmark run failed. Exiting.")
             break
 
         # Copy and extract metrics

@@ -149,16 +149,15 @@ def start(config: str) -> None:
                 avg_file = user_dir / "avg_Response.csv"
                 if avg_file.exists():
                     df = pd.read_csv(avg_file)
-                    df['users'] = u
                     all_results.append(df)
 
             if all_results:
                 combined_df = pd.concat(all_results, ignore_index=True)
-                combined_df = combined_df[['users', 'input_tokens', 'output_tokens', 'throughput(tokens/second)', 'latency(ms)', 'TTFT(ms)', 'latency_per_token(ms/token)']]
+                combined_df = combined_df[['user_counts', 'input_tokens', 'output_tokens', 'throughput(tokens/second)', 'latency(ms)', 'TTFT(ms)', 'latency_per_token(ms/token)']]
                 combined_df = combined_df.round(3)
                 
                 # Sort the DataFrame
-                combined_df = combined_df.sort_values(['users', 'input_tokens', 'output_tokens'])
+                combined_df = combined_df.sort_values(['user_counts'])
 
                 click.echo(tabulate(combined_df, headers='keys', tablefmt='pretty', showindex=False))
 
@@ -227,6 +226,35 @@ def optimaluserrun(config: str) -> None:
     """
     config_path = Path(config)
     cfg = load_config(config_path)
+    
+    # Check if random_prompt is set to false
+    if not cfg.get('random_prompt', False):
+        error_msg = (
+            "Error: random_prompt is set to `false` in config.json. "
+            "Please set random_prompt to `true` if you want to find the optimal user count."
+        )
+        logging.error(error_msg)
+        # click.echo(error_msg, err=True)
+        raise click.Abort()
+    
+    # Check for multiple values in arrays and warn user
+    warnings = []
+    if len(cfg.get('output_tokens', [])) > 1:
+        warnings.append(f"output_tokens: {cfg['output_tokens']} (using first value: {cfg['output_tokens'][0]})")
+    if len(cfg.get('user_counts', [])) > 1:
+        warnings.append(f"user_counts: {cfg['user_counts']} (using first value: {cfg['user_counts'][0]})")
+    if len(cfg.get('increment_user', [])) > 1:
+        warnings.append(f"increment_user: {cfg['increment_user']} (using first value: {cfg['increment_user'][0]})")
+    
+    if warnings:
+        warning_msg = (
+            "Warning: Multiple values detected in config.json. "
+            "Only single values are required for optimal user count analysis. "
+            "Processing with first value of all these items:\n" +
+            "\n".join(f"  - {warning}" for warning in warnings)
+        )
+        logging.warning(warning_msg)
+        # click.echo(warning_msg, err=True)
     
     dataset_dir = Path("Input_Dataset")
     if not dataset_dir.exists() or not any(dataset_dir.iterdir()):

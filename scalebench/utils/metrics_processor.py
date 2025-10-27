@@ -5,6 +5,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import List, Optional
+import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -51,7 +52,7 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
                        input_tokens: int = None, random_prompt: bool = False):
     
     if random_prompt==True:
-        column_names = ["input_tokens", "output_tokens", "throughput(tokens/second)", "latency(ms)", "TTFT(ms)", "latency_per_token(ms/token)"]
+        
         rows = read_csv(input_csv_filename)
 
         if not rows:
@@ -59,6 +60,27 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
             sys.exit(1)
 
         header = rows[0]
+        data_rows = rows[1:]
+        
+        # Calculate how many rows to average (max_requests * user_count)
+        group_size = max_requests * user_count
+        
+        # Check if we have enough rows
+        total_rows = len(data_rows)
+        
+        logging.info(f"Processing random_prompt mode: total_rows={total_rows}, group_size={group_size}")
+        
+        if total_rows < group_size:
+            logging.warning(f"Only {total_rows} rows available, expected {group_size} rows")
+            rows_to_average = data_rows
+        else:
+            # Take the last group_size rows for averaging
+            rows_to_average = data_rows[-group_size:]
+        
+        logging.info(f"Averaging {len(rows_to_average)} rows")
+
+        # columns to average (including all metrics columns)
+        column_names = ["input_tokens", "output_tokens", "throughput(tokens/second)", "latency(ms)", "TTFT(ms)", "latency_per_token(ms/token)"]
 
         try:
             column_indices = [header.index(column) for column in column_names]
@@ -66,24 +88,30 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
             logging.error(f"Error finding column indices: {str(e)}. Check if all required columns are present.")
             sys.exit(1)
 
-        empty_line_indices = [i for i, row in enumerate(rows) if not any(row)]
-        if not empty_line_indices or empty_line_indices[-1] != len(rows) - 1:
-            rows.append([''] * len(rows[0]))
-        empty_line_indices = empty_line_indices + [len(rows)]
-
+        file_exists = os.path.exists(output_csv_filename)
+        
         try:
-            with open(output_csv_filename, mode='w', newline="") as file:
+            with open(output_csv_filename, mode='a', newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow(column_names)
-
-                for i in range(len(empty_line_indices)):
-                    start_index = 1 if i == 0 else empty_line_indices[i - 1] + 1
-                    end_index = empty_line_indices[i]
-                    group_rows = rows[start_index:end_index]
-                    average = calculate_average(group_rows, column_indices)
-
-                    if len(average) > 1:
-                        writer.writerow(average) 
+                
+                # Write header only if file is new
+                if not file_exists:
+                    writer.writerow(["user_counts"] + column_names + ["total_throughput(tokens/second)"])
+                
+                # Calculate average of the last group_size rows
+                average = calculate_average(rows_to_average, column_indices)
+                
+                # Find throughput index in the average list (third index, 0-indexed = 2)
+                throughput_idx = 2
+                throughput_avg = average[throughput_idx]
+                
+                # Calculate total_throughput = throughput * user_count
+                total_throughput = throughput_avg * user_count if throughput_avg is not None else None
+                
+                # Write the single averaged row with user_count and total_throughput
+                writer.writerow([user_count] + average + [total_throughput])
+                
+                logging.info(f"Average calculated and appended to {output_csv_filename}")
 
         except PermissionError:             
             logging.error(f"Permission denied when trying to write to: {output_csv_filename}")
@@ -118,7 +146,7 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
         try:
             with open(output_csv_filename, mode='w', newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow(["user_counts", "input_tokens", "output_tokens"] + column_names)
+                writer.writerow(["user_counts", "input_tokens", "output_tokens"] + column_names + ["total_throughput(tokens/second)"])
 
                 for i, token in enumerate(output_tokens):
                     start = i * group_size
@@ -129,7 +157,13 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
                         continue
 
                     avg_values = calculate_average(group_rows, column_indices)
-                    writer.writerow([user_count, input_tokens, token] + avg_values)
+                    
+                    # Calculate total_throughput = throughput * user_count
+                    # Throughput is the first column in column_names (index 0)
+                    throughput_avg = avg_values[0]
+                    total_throughput = throughput_avg * user_count if throughput_avg is not None else None
+                    
+                    writer.writerow([user_count, input_tokens, token] + avg_values + [total_throughput])
 
             logging.info(f"Averages successfully written to {output_csv_filename}")
 

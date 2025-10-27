@@ -1,22 +1,22 @@
 {
-  "_comment": "ScaleBench Configuration",
-  "out_dir": "test_results",
-  "base_url": "http://localhost:8000/v1/completions",
-  "tokenizer_path": "path/to/tokenizer",
-  "inference_server": "vLLM",
-  "model": "/model",
-  "random_prompt": false,
-  "max_requests": 1,
-  "user_counts": [
-      1
-  ],
-  "increment_user": [
-      10
-  ],
-  "input_tokens": [
-      32
-  ],
-  "output_tokens": [
-      256
-  ]
-}
+    "_comment": "ScaleBench Configuration",
+    "out_dir": "test_results",
+    "base_url": "http://localhost:8000/v1/completions",
+    "tokenizer_path": "path/to/tokenizer",
+    "inference_server": "vLLM",
+    "model": "/model",
+    "random_prompt": false,
+    "max_requests": 1,
+    "user_counts": [
+        1
+    ],
+    "increment_user": [
+        10
+    ],
+    "input_tokens": [
+        32
+    ],
+    "output_tokens": [
+        256
+    ]
+  }
