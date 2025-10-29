@@ -26,7 +26,7 @@ def cli():
     Usage:
     1. Run 'scalebench dataprep' to download the dataset and create config.json
     2. Run 'scalebench start --config path/to/config.json' to start the benchmark
-    3. Run 'scalebench plot --results-dir path/to/benchmark_results' to generate plots
+    3. Run 'scalebench plot --results-dir path/to/benchmark_results --config path/to/config.json' to generate plots
     4. Run 'scalebench optimaluserrun --config path/to/config.json' to find optimal user count
 
     For more detailed information, visit: \n
@@ -137,7 +137,8 @@ def start(config: str) -> None:
                 output_tokens=cfg['output_tokens'][0],
                 dataset_dir=str(dataset_dir / 'Dataset-20k'),
                 random_prompt=cfg['random_prompt'],
-                tokenizer_path=cfg['tokenizer_path']
+                tokenizer_path=cfg['tokenizer_path'],
+                config_path=str(config_path)
             )
 
             benchmark.run_benchmark()
@@ -176,7 +177,8 @@ def start(config: str) -> None:
                 input_tokens=cfg['input_tokens'],
                 output_tokens=cfg['output_tokens'],
                 dataset_dir=str(dataset_dir / 'Dataset-8k'),
-                tokenizer_path=cfg['tokenizer_path']
+                tokenizer_path=cfg['tokenizer_path'],
+                config_path=str(config_path)
             )
 
             benchmark.run_benchmark()
@@ -309,9 +311,12 @@ def optimaluserrun(config: str) -> None:
 def plot(results_dir: str, config: str) -> None:
     """Plot graphs using benchmark results.
     
+    Reads the config file to determine if random_prompt mode was used, then generates
+    aggregated data files (CSV and TXT) and visualization plots from the benchmark results.
+    
     Args:
-        results_dir: Directory containing benchmark results.
-        config: Path to the configuration file.
+        results_dir: Directory containing benchmark results (e.g., test_results/test4)
+        config: Path to the configuration file (required to read random_prompt setting)
     """
     results_path = Path(results_dir)
     config_path = Path(config)

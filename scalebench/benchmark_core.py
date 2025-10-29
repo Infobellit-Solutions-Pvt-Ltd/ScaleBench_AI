@@ -25,7 +25,8 @@ class ScaleBench:
         output_tokens: List[int] = None,
         dataset_dir: str = "Input_Dataset",
         random_prompt: bool = False,
-        tokenizer_path: str = None
+        tokenizer_path: str = None,
+        config_path: str = None
     ):
         """Initialize ScaleBench.
         
@@ -73,6 +74,7 @@ class ScaleBench:
         self.dataset_dir = Path(dataset_dir)
         self.random_prompt = random_prompt
         self.tokenizer_path = tokenizer_path
+        self.config_path = config_path
         
     def run_benchmark(self) -> None:
         """Run the benchmark with configured parameters.
@@ -289,6 +291,8 @@ class ScaleBench:
                 "--user_count", str(user_count),
                 "--random_prompt"
             ]
+            if self.config_path:
+                command.extend(["--config_path", str(self.config_path)])
             
             try:
                 subprocess.run(command, check=True)
@@ -309,6 +313,8 @@ class ScaleBench:
                 "--user_count", str(user_count),
                 "--input_tokens", str(input_token)
             ]
+            if self.config_path:
+                command.extend(["--config_path", str(self.config_path)])
 
             try:
                 subprocess.run(command, check=True)

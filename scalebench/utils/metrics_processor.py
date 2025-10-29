@@ -179,10 +179,15 @@ if __name__ == '__main__':
     parser.add_argument('--user_count', type=int, required=True, help='Number of users')
     parser.add_argument('--input_tokens', type=int, help='Number of input tokens (extracted from filename if not provided)')
     parser.add_argument('--random_prompt', action='store_true', help='Use random prompts (default: False)')
+    parser.add_argument('--config_path', help='Path to config.json file')
     args = parser.parse_args()
 
-    # Read config.json from the project root
-    config_path = Path(__file__).parent.parent.parent / "config.json"
+    # Read config.json - use provided path or fallback to project root
+    if args.config_path:
+        config_path = Path(args.config_path)
+    else:
+        config_path = Path(__file__).parent.parent.parent / "config.json"
+    
     if config_path.exists():
         config = read_config(str(config_path))
         output_tokens = config.get('output_tokens', [])

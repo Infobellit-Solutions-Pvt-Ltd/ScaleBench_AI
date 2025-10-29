@@ -195,8 +195,10 @@ scalebench optimaluserrun --config path/to/config.json
 Visualize the benchmark results using the built-in plotting tool:
 
 ```bash
-scalebench plot --results-dir path/to/your/results_dir
+scalebench plot --results-dir path/to/your/results_dir --config path/to/config.json
 ```
+
+**Note:** The `--config` parameter is optional and defaults to `config.json`. It is used to read the `random_prompt` setting from the configuration file.
 
 ### CLI Reference
 ```bash

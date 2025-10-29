@@ -5,7 +5,7 @@ with open("PIP_Package.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="scalebench",
-    version="0.1.2",
+    version="0.1.3",
     author="Infobell AI Team",
     author_email="sarthak@infobellit.com",
     description="LLM Inference Benchmarking Tool",
