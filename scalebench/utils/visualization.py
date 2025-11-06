@@ -52,17 +52,17 @@ def write_to_csv(data, output_file, random_prompt):
 def write_to_txt(data, output_file, random_prompt):
     with open(output_file, 'w') as f:   
         mode_label = "RANDOM PROMPT MODE" if random_prompt else "FIXED PROMPT MODE"
-        f.write("=" * 100 + "\n")
+        f.write("=" * 170 + "\n")
         f.write(f"BENCHMARK RESULTS - {mode_label}\n")
-        f.write("=" * 100 + "\n\n")
+        f.write("=" * 170 + "\n\n")
         f.write(f"{'User Counts':<12} {'Input Tokens':<15} {'Output Tokens':<15} {'Throughput (tokens/second)':<25} {'Latency (ms)':<15} {'TTFT (ms)':<15} {'Latency/Token (ms/token)':<25} {'Total Throughput (tokens/second)':<30}\n")
-        f.write("-" * 180 + "\n")
+        f.write("-" * 170 + "\n")
         for value in data:
             f.write(f"{value[0]:<12} {round(float(value[1]), 2):<15} {round(float(value[2]), 2):<15} {round(float(value[3]), 2):<25} {round(float(value[4]), 2):<15} {round(float(value[5]), 2):<15} {round(float(value[6]), 2):<25} {round(float(value[7]), 2):<30}\n")
         
-        f.write("\n" + "=" * 100 + "\n")
+        f.write("\n" + "=" * 170 + "\n")
         f.write(f"Total Records: {len(data)}\n")
-        f.write("=" * 100 + "\n")
+        f.write("=" * 170 + "\n")
 
 def plot_line_chart(data, x_label, y_label, title, output_file):
     plt.figure(figsize=(12, 8))

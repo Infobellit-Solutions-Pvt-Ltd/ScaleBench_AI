@@ -109,7 +109,7 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
                 total_throughput = throughput_avg * user_count if throughput_avg is not None else None
                 
                 # Write the single averaged row with user_count and total_throughput
-                writer.writerow([user_count] + average + [total_throughput])
+                writer.writerow([int(user_count)] + average + [total_throughput])
                 
                 logging.info(f"Average calculated and appended to {output_csv_filename}")
 
@@ -163,7 +163,7 @@ def calculate_averages(input_csv_filename: str, output_csv_filename: str,
                     throughput_avg = avg_values[0]
                     total_throughput = throughput_avg * user_count if throughput_avg is not None else None
                     
-                    writer.writerow([user_count, input_tokens, token] + avg_values + [total_throughput])
+                    writer.writerow([int(user_count), input_tokens, token] + avg_values + [total_throughput])
 
             logging.info(f"Averages successfully written to {output_csv_filename}")
 

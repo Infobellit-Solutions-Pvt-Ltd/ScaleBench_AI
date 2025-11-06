@@ -245,24 +245,50 @@ def generate_summary_report(config_file, optimal_user_count, metrics, benchmark_
     Generate a summary report with the benchmark metrics.
     """
     try:
-        out_dir = json.load(open(config_file))["out_dir"]
-        summary_report_path = Path(out_dir) / "Results" / "summary_report.csv"
-        summary_report_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+        out_dir = config["out_dir"]
+        summary_report_path1 = Path(out_dir) / "Results" / "summary_report.csv"
+        summary_report_path2 = Path(out_dir) / "Results" / "summary_report.txt"
+        summary_report_path1.parent.mkdir(parents=True, exist_ok=True)
 
         report_data = {
-            "concurrent_user": [optimal_user_count],
-            "ttft": int(metrics[0]),
-            "token_latency": int(metrics[1]),
-            "tokens_per_sec": round(metrics[4],3)
+            "User Counts": [int(optimal_user_count)],
+            "Total Throughput(tokens/second)": [round(metrics[4], 3)],
+            "TTFT (ms)": [int(metrics[0])],
+            "Latency per Token(ms/token)": [round(metrics[1], 3)],
+            "Throughput(tokens/second)": [round(metrics[3], 3)],
+            "Latency(ms)": [round(metrics[2], 3)]
         }
 
         df = pd.DataFrame(report_data)
-        df.to_csv(summary_report_path, index=False)
-        print(f"Summary report generated at {summary_report_path}")
-        return summary_report_path
-
+        df.to_csv(summary_report_path1, index=False)
+        
+        # Write text file manually since pandas doesn't have to_txt()
+        with open(summary_report_path2, 'w') as txt_file:
+            # Header
+            txt_file.write("=" * 150 + "\n")
+            txt_file.write(f"BENCHMARK RESULTS - RANDOM PROMPT MODE\n")
+            txt_file.write("=" * 150 + "\n\n")
+            
+            # Column headers
+            txt_file.write(f"{'User Counts':<12} {'Throughput (tokens/second)':<25} {'Latency (ms)':<15} {'TTFT (ms)':<15} {'Latency/Token (ms/token)':<25} {'Total Throughput (tokens/second)':<30}\n")
+            txt_file.write("-" * 150 + "\n")
+            
+            # Data row - format matches write_to_txt function
+            txt_file.write(f"{int(optimal_user_count):<12} {round(metrics[3], 3):<25} {round(metrics[2], 3):<15} {round(metrics[0], 2):<15} {round(metrics[1], 2):<25} {round(metrics[4], 2):<30}\n")
+            
+            # Footer
+            txt_file.write("\n" + "=" * 150 + "\n")
+            txt_file.write(f"Total Records: 1\n")
+            txt_file.write("=" * 150 + "\n")
+        
+        print(f"Summary report generated at {summary_report_path1} and {summary_report_path2}")
+        return summary_report_path1, summary_report_path2
+    
     except Exception as e:
         print(f"Error generating summary report: {e}")
+        return None, None
 
 def adjust_user_count(config_file, result_dir):
     """
